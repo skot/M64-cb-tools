@@ -2,7 +2,8 @@
 
 Target: M64VL20 / CB6 V5 SL V2.0. Other revisions need an independently
 verified profile. Controller-only checks were exercised on 2026-11-03;
-see [VALIDATION.md](VALIDATION.md). Attached-device tests remain pending.
+see [VALIDATION.md](VALIDATION.md). Subsequent live assembled-miner
+observations are in [POWERED-VALIDATION.md](POWERED-VALIDATION.md).
 
 | Interface | Mapping | Implemented check | Remaining validation |
 | --- | --- | --- | --- |
@@ -13,10 +14,10 @@ see [VALIDATION.md](VALIDATION.md). Attached-device tests remain pending.
 | Reset | GPIO201/202, active low, physical boards 0/1 | Assert/release; raw status | Verify return and timing under tool ownership |
 | Reset return | GPIO193/194 | Read exported raw level | GPIO194 not directly captured in reference notes |
 | Shared switched LDO | GPIO263, active high | Switch with both resets asserted | Voltage/settling measurement |
-| Hashboard EEPROM | I2C10, `0x50`/`0x51`, BL24C02 | 128-byte identity/CRC via sysfs or combined I2C transaction | Compare to retained EEPROM dump |
-| Hashboard temperature | I2C10, `0x48`/`0x49`, LM75 class | Hwmon or native big-endian signed read | Compare temperature and calibration |
+| Hashboard EEPROM | I2C10, `0x50`/`0x51`, BL24C02 | Both live sysfs reads matched reference dumps; known board-0 CRC mismatch surfaced | Native combined-I2C path not live-tested |
+| Hashboard temperature | I2C10, `0x48`/`0x49`, LM75 class | Hwmon reads matched stock paired-slot temperatures | Native reads and calibration comparison |
 | Environment sensor | I2C4, `0x4f`, LM75 class | Hwmon read works with PSU and hashboards absent | Exact physical sensor location/medium |
-| P738B PSU | I2C4, `0x58` | Stock raw telemetry or PEC-checked SMBus | Compare units/status to stock; independent protection before output enable |
+| P738B PSU | I2C4, `0x58` | Live stock-driver telemetry including indexed fan and temperatures | Native SMBus/PEC and controls; unsupported generic nodes can affect error reporting |
 | Cooling channels | `/sys/bitmicro/fan/fan0` and `fan1` | PWM percentage and kernel `speed0/1` reads | Actual channel/tach wiring and enabled state |
 | LEDs | Red GPIO257, green GPIO258 | Raw high/low and status | Confirm visible polarity and daemon ownership |
 | Buttons | IP Found GPIO234, reset GPIO233 | Input export/read | Confirm press polarity; avoid stock long-press actions |

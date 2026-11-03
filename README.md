@@ -10,7 +10,10 @@ The implementation is built from the local M64 configuration, connector
 notes, PMBus captures and BT1980 UART captures. **Controller-only bench
 validation completed on 2026-11-03**, without hashboards or a PSU.
 See [VALIDATION.md](VALIDATION.md) for verified behavior and the tests
-that still require attached hardware.
+that required attached hardware. The subsequent
+[assembled-miner validation](POWERED-VALIDATION.md) covers live stock
+driver telemetry, both EEPROMs and stock UART activity while mining
+remained running.
 
 ## Tools
 
@@ -105,12 +108,20 @@ the reference machine mined with one such board.
 Hwmon devices are discovered by directory and reported with their names,
 rather than assuming a fixed `hwmon5`. Hwmon temperatures are raw
 millidegrees Celsius; named thermal zones provide the SoC temperatures
-on the tested stock kernel. Vendor power values retain their raw representation
-until their units are confirmed on the current firmware. A water-cooled
+on the tested stock kernel. Vendor power values retain their raw
+representation, with units documented for the tested P738B firmware.
+PSU fan and temperature readings may use `fan_speed0` and `temp0..2`.
+A water-cooled
 M64VL20 may report zero control-board fan RPM; the PSU fan is separate.
 
 PSU status rejects the stock driver's `unknow`/`(null)` identity when no
 PSU is attached. Sentinel voltage values are not reported as measurements.
+
+Existing generic sysfs nodes do not guarantee supported hardware
+operations. On the tested live P738B, phase-node probes coincided with
+stock PSU warning records. Default captures avoid those nodes and the
+unsupported PSU `water_temp` read. See the powered validation report
+before adding optional telemetry probes to a live system.
 
 ## Exclusive hardware experiments
 

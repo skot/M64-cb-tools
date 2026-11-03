@@ -1,5 +1,8 @@
 # Controller-only bench validation, 2026-11-03
 
+For the subsequent assembled-miner session, see
+[POWERED-VALIDATION.md](POWERED-VALIDATION.md).
+
 Tested on a CB6 V5 / Allwinner H616 control board running stock AArch64
 Linux 4.9.170. The board had **no hashboards or PSU attached**. Tools were
 deployed into `/tmp`, with checksums verified on the board. All six

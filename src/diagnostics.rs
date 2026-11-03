@@ -204,11 +204,7 @@ pub fn temps(sys: &System) -> Result<()> {
             successes += usize::from(sys.show(&format!("{base}/temp")));
         }
     }
-    for path in [
-        "/sys/bitmicro/power/temp",
-        "/sys/bitmicro/power/water_temp",
-        "/tmp/water_temp",
-    ] {
+    for path in ["/sys/bitmicro/power/temp", "/tmp/water_temp"] {
         if sys.path(path).exists() {
             successes += usize::from(sys.show(path));
         }

@@ -23,6 +23,7 @@ pub fn run(sys: &System, args: &ArgMatches) -> Result<()> {
             "PSU unavailable: stock driver has no valid PSU identity; telemetry placeholders are not measurements"
         );
         let mut successes = 0;
+        let nodes = sys.children("/sys/bitmicro/power").unwrap_or_default();
         for attr in [
             "vender",
             "serial_no",
@@ -37,22 +38,43 @@ pub fn run(sys: &System, args: &ArgMatches) -> Result<()> {
             "vin",
             "iin",
             "pin",
+            "pout",
             "fan_enable",
             "fan_speed",
             "temp",
-            "water_temp",
             "status",
             "errors",
             "common_status",
         ] {
-            successes += usize::from(sys.show(&format!("/sys/bitmicro/power/{attr}")));
+            let path = format!("/sys/bitmicro/power/{attr}");
+            // Stock firmware can expose only indexed fan/temperature nodes.
+            // Restrict discovery to these read-only telemetry families.
+            let indexed: Vec<_> = nodes
+                .iter()
+                .filter(|name| {
+                    matches!(attr, "fan_speed" | "temp")
+                        && name.strip_prefix(attr).is_some_and(|suffix| {
+                            !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit())
+                        })
+                })
+                .collect();
+            if !sys.path(&path).exists() && !indexed.is_empty() {
+                for name in indexed {
+                    successes += usize::from(sys.show(&format!("/sys/bitmicro/power/{name}")));
+                }
+            } else {
+                successes += usize::from(sys.show(&path));
+            }
         }
         ensure!(
             successes > 0,
             "no readable power attributes; try native-status only if no kernel driver owns 0x58"
         );
         println!(
-            "Vendor attributes are raw; vout/vout_set are expected centivolts. Indexed nodes may differ by firmware."
+            "Vendor attributes are raw. On tested stock P738B firmware: vout/vout_set/vin are centivolts; iout/iin are milliamps; indexed temp values are tenths of a degree C; pin/pout are watts; fan_speed values are RPM. Other nodes retain their driver-specific units."
+        );
+        println!(
+            "Unsupported generic phase and water_temp nodes are not probed; reading them can affect the stock driver's error reporting."
         );
         return Ok(());
     }

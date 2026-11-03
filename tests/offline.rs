@@ -142,6 +142,7 @@ fn disconnected_psu_placeholders_are_not_valid_telemetry() {
 #[test]
 fn thermal_zones_are_available_without_soc_hwmon_nodes() {
     let board = Board::new();
+    board.put("/sys/bitmicro/power/water_temp", b"UNSUPPORTED\n");
     board.put(
         "/sys/class/thermal/thermal_zone0/type",
         b"cpu_thermal_zone\n",
@@ -151,4 +152,50 @@ fn thermal_zones_are_available_without_soc_hwmon_nodes() {
     assert!(result.status.success());
     let output = String::from_utf8_lossy(&result.stdout);
     assert!(output.contains("cpu_thermal_zone") && output.contains("39833"));
+    assert!(!output.contains("/sys/bitmicro/power/water_temp"));
+}
+
+#[test]
+fn powered_psu_status_reads_indexed_telemetry_without_mutating_setpoints() {
+    let board = Board::new();
+    board.put("/sys/bitmicro/power/water_temp", b"UNSUPPORTED\n");
+    board.put("/sys/bitmicro/power/vin0", b"UNSUPPORTED\n");
+    board.put("/proc/42/comm", b"btminer\n");
+    for (name, value) in [
+        ("name", "P738B"),
+        ("model", "P738B"),
+        ("enable", "1"),
+        ("vout_set", "2255"),
+        ("fan_speed0", "6000"),
+        ("temp0", "290"),
+        ("temp1", "367"),
+        ("temp2", "325"),
+        ("pout", "3794"),
+    ] {
+        board.put(&format!("/sys/bitmicro/power/{name}"), value.as_bytes());
+    }
+    let result = board.run(env!("CARGO_BIN_EXE_p738b-psu-tool"), &["status"]);
+    assert!(result.status.success());
+    let output = String::from_utf8_lossy(&result.stdout);
+    for expected in [
+        "fan_speed0: 6000",
+        "temp0: 290",
+        "temp1: 367",
+        "temp2: 325",
+        "pout: 3794",
+    ] {
+        assert!(output.contains(expected), "missing {expected}");
+    }
+    assert!(!output.contains("/power/fan_speed: UNAVAILABLE"));
+    assert!(!output.contains("/power/temp: UNAVAILABLE"));
+    assert!(!output.contains("/power/water_temp:"));
+    assert!(!output.contains("/power/vin0:"));
+    assert_eq!(
+        fs::read(board.0.join("sys/bitmicro/power/enable")).unwrap(),
+        b"1"
+    );
+    assert_eq!(
+        fs::read(board.0.join("sys/bitmicro/power/vout_set")).unwrap(),
+        b"2255"
+    );
 }
