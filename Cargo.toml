@@ -1,0 +1,13 @@
+[package]
+name = "m64-cb-tools"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+description = "Standalone interface diagnostics for WhatsMiner M64 CB6 V5"
+repository = "https://github.com/skot/M64-cb-tools"
+
+[dependencies]
+anyhow = "1.0"
+clap = "4"
+hex = "0.4"
+libc = "0.2"
