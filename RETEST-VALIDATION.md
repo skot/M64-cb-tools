@@ -6,6 +6,13 @@ and stock-driver telemetry, and configure all four ASIC UARTs. Native
 PMBus/sensor access remains blocked by attached kernel drivers; powered
 ASIC communication and a protected independent PSU startup remain open.
 
+For the Mujina replacement goal, USB/FEL and TEE functional validation
+are outside the required scope by operator direction. Their inventory
+observations below are retained for completeness. Native userspace I2C
+ownership is also not inherently required if Mujina uses the retained
+kernel drivers; the required result is verified control and protection
+through the chosen backend.
+
 This pass followed installation of [persistent maintenance mode](MAINTENANCE-MODE.md)
 on the assembled M64VL20 / H616 / CB6 V5 controller at `192.168.1.179`.
 The main hardware sweep ran from 20:30:22 to 20:34:28 UTC on November 3
@@ -48,8 +55,8 @@ measurement of a connector or rail.
 | Ethernet | SSH, binary/evidence transfer and status capture worked at reported 100 Mb/s; RX/TX error and drop counters stayed zero across the captured interval. | No sustained throughput, packet loopback or link-mode changes tested. |
 | Vendor keepalive/supervisors | Keepalive stayed 0; selected vendor applications stayed absent in the same boot. Persistent policy remained armed. | This pass did not repeat the preceding controlled-reboot tests or exercise live rollback. |
 | Hardware watchdog | Read-only `ubus` status: running, timeout 16 s, feed interval 5 s, magicclose false. PID 1 retained its watchdog descriptor. | No watchdog takeover, deliberate expiry or Mujina crash protection test. Generic watchdog sysfs attributes are absent on this firmware. |
-| USB/FEL/gadget | Inventory command ran; stock runtime USB/UDC classes absent. | No external USB host/device/FEL transaction or mode change. |
-| TEE | `/dev/tee0` and `/dev/teepriv0` present. | No trusted-application operation or authentication test. |
+| USB/FEL/gadget | Inventory command ran; stock runtime USB/UDC classes absent. | Outside required Mujina validation scope; no external transaction or mode change tested. |
+| TEE | `/dev/tee0` and `/dev/teepriv0` present. | Outside required Mujina validation scope; no trusted-application operation tested. |
 | BTROM and J1 pin mapping | No additional protocol or electrical test. | BTROM protocol, exact J1 tach/reference pins and PWM waveform remain outside implemented validation. |
 
 The stock PSU `errors` node is absent. Virtual network interfaces reject
@@ -128,3 +135,50 @@ The remaining gates are independent PSU fail-off/control, protected cold
 startup, powered four-chain identity/register exchange, and physical
 cooling/thermal protection. See [BRINGUP.md](BRINGUP.md). This pass does
 not qualify unattended output-on operation or complete Mujina mining.
+
+## Next acceptance tests for Mujina
+
+These are proposed tests, not additional completed validation.
+
+1. **Powered ASIC replies.** First implement verified driver-backed PSU
+   disable/setpoint control, a bounded enable interval and an independent
+   shutdown guardian. Establish the remaining PSU/LDO/reset ordering and
+   idle-current bounds from synchronized evidence. Implement cold
+   discovery at 375000 baud / shift 0 and the required initialization;
+   the existing `check` command does not initialize a cold chain. Once
+   initialized, require complete CRC-valid BT1980 identity replies with
+   IDs 0–95 on each of four chains at the configured operating baud.
+   Repeat register reads to check consistency. Submit no mining work for
+   this identity test. On timeout, fault, excess current/temperature or
+   loss of the test process, assert resets, disable output and verify
+   Vout/Iout return to zero. Thresholds must be established before enable.
+2. **Tachometer inputs, if used.** Resolve the connector-to-input mapping
+   and electrical levels before attaching a known tach source. With
+   hashboard output off, drive each used input with a known open-drain
+   pulse train, or a separately powered fan of known pulses/revolution.
+   Compare `fan-tool read-rpm` against `RPM = 60 × frequency / pulses-per-revolution`
+   at several rates; removing pulses must produce a missing/stalled
+   indication after measuring the driver's update/timeout behavior.
+   Pulse count must be measured or documented, not assumed. For unused
+   inputs on this water-cooled installation, record not applicable;
+   verify actual coolant-flow/thermal protection instead. The PSU's
+   separately reported fan RPM is not a test of these four inputs.
+3. **Electrical waveforms.** Use a scope for voltage/edge shape and a
+   logic analyzer for timing/decoding on a verified low-voltage breakout.
+   Identify J1 pins by continuity and measurement first: T43 is only a
+   PWM candidate; T41/T42 roles remain unresolved. With PSU output off,
+   change cooling PWM at safe bench values and measure frequency, duty,
+   polarity and pin routing. An earlier J1 capture measured about 25 kHz
+   on T43; confirm correspondence to the current channel commands.
+   Capture UART TX/RX on each physical chain during known read requests,
+   verifying bit periods, bytes and connector mapping. During the later
+   protected powered test, capture switched-LDO, reset and reset-return
+   timing together and confirm actual rail voltage and settling before
+   reset release. Reset at the ASIC side may be around 1.2 V; confirm
+   levels before selecting digital thresholds. Keep PSU auxiliary-power
+   pins out of logic-analyzer inputs.
+
+Prioritize PSU shutdown/control and powered identity replies. Tach and
+cooling-PWM qualification depend on whether those signals participate in
+the installed water loop; external coolant circulation must have an
+independently verified protection path before unattended mining.

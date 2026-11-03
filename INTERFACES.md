@@ -9,6 +9,9 @@ Exclusive PSU-off checks are in
 The latest [maintenance-mode retest](RETEST-VALIDATION.md) adds physical
 button/LED observations, two-rate UART driver readback and current
 ownership/control limitations. Full independent control is not yet verified.
+For Mujina replacement, USB/FEL and TEE functional tests are outside the
+required scope. Tach inputs require functional qualification only if
+used by the installed cooling/protection system; inventory is retained.
 
 | Interface | Mapping | Implemented check | Remaining validation |
 | --- | --- | --- | --- |
