@@ -9,11 +9,12 @@ behavior.
 
 The operator did not reboot the board after the PSU-off tests. Saved
 logs show a duplicate vendor EEPROM sysfs node during an `at24` rebind
-at 03:39:39 UTC, followed by an explicit supervisor-requested exception
-reboot at 03:41:10 UTC. Stock startup then resumed mining and enabled
+at 03:39:39 board-local time (UTC+08:00), followed by an explicit
+supervisor-requested exception reboot at 03:41:10. Stock startup then resumed mining and enabled
 the PSU. The RAM-only intentional-off marker was gone after reboot.
 
-The earlier PSU watchdog-warning record was timestamped 03:26:09 UTC,
+The earlier PSU watchdog-warning record was timestamped 03:26:09 in
+the same board-local timezone,
 alongside the unsupported telemetry-probe errors. It does not establish
 that a PSU watchdog caused the later reboot. The saved exception and
 software-reboot log provide the direct evidence for that event.
@@ -105,10 +106,17 @@ was restored afterward. This confirms the programmed discovery rate
 on this kernel/clock setup; it is not a scope measurement of the wire.
 No factor-of-two discovery mapping is needed for the observed setup.
 
-The stock shutdown for this check completed at 03:56:58 UTC. Output
+The stock shutdown for this check completed at 03:56:58 board-local
+time (UTC+08:00). Output
 enable, measured voltage and output current remained zero, and kernel
 taint remained zero after the UART check. No PSU-enable or voltage
 write was issued during the investigation.
+
+Through 04:02:04 board-local time, over five minutes after this clean
+shutdown, the boot ID was unchanged, kernel taint remained zero,
+`btminer` was absent and output remained 0 V / 0 A. That observation
+corroborates the recorded exception/reboot sequence; it does not prove
+that every possible PSU-watchdog behavior has been tested.
 
 The initialization capture also contains details absent from a simple
 prefix-plus-96-address experiment:

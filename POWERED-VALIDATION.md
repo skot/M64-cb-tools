@@ -8,8 +8,9 @@ P738B PSU, two hashboards and user-confirmed coolant circulation. Stock
 AArch64 Linux 4.9.170 and `btminer` were already running. The PSU was
 already enabled before testing; the tools did not enable it.
 
-The board timestamps were November 4 UTC; this report uses November 3
-in the operator's America/New_York timezone.
+The board uses `CST-8` (UTC+08:00), so its log timestamps were November
+4. This report uses November 3 in the operator's America/New_York
+timezone. Board-local timestamps below are not UTC.
 
 ## Scope and operating state
 
@@ -59,7 +60,7 @@ b15a6861c944150a72da9adab469980677c0f846294411e4fa7a049f64c0e0c0
 
 Some generic nodes exist in sysfs but are not supported by this PSU
 profile. Supplementary reads of indexed phase-voltage/current nodes
-returned errors. At the same board timestamp, 03:26:09 UTC, stock
+returned errors. At the same board-local timestamp, 03:26:09, stock
 software recorded codes 264–267, 270–274 and 276–280. Each record cited
 the same mask, `0xffffffffc0000000`, including a transfer error and
 several derived warnings. The matching timing makes these unsupported

@@ -17,8 +17,8 @@ creates `/tmp/was_poweroff`, requests log preservation and disables the
 PSU hashboard output; it does not shut down the controller. Its paired
 power-on helper starts stock mining again, but was not executed.
 
-The stock shutdown completed at 03:37 UTC on November 4, corresponding
-to November 3 in America/New_York. It printed an `unknown operand`
+The stock shutdown completed at 03:37 board-local time on November 4
+(UTC+08:00), corresponding to November 3 in America/New_York. It printed an `unknown operand`
 warning and a redundant `killall` message; independent checks confirmed
 the intended shutdown state:
 
@@ -72,7 +72,8 @@ and the rebind attempted to create an existing node.
 ## Subsequent automatic reboot
 
 The operator confirmed that they did not reboot or power-cycle the
-controller. Saved logs establish this sequence:
+controller. Saved logs establish this sequence, in board-local
+UTC+08:00 time:
 
 ```text
 03:39:39.82 kernel: cannot create duplicate filename '/bitmicro/eeprom/eeprom1'
@@ -93,7 +94,7 @@ used as a routine workaround for I2C ownership on this stock firmware.
 
 ## Final state and remaining work
 
-The final check at 03:40 UTC confirmed:
+The final check at 03:40 board-local time confirmed:
 
 ```text
 btminer                 stopped
