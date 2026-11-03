@@ -1,6 +1,9 @@
 //! P738B monitoring through stock sysfs or PEC-checked native SMBus.
 
-use anyhow::{Result, ensure};
+use std::thread;
+use std::time::{Duration, Instant};
+
+use anyhow::{Context, Result, ensure};
 use clap::ArgMatches;
 
 use crate::{i2c::I2c, protocol, system::System};
@@ -79,6 +82,9 @@ pub fn run(sys: &System, args: &ArgMatches) -> Result<()> {
         return Ok(());
     }
     let _session = sys.session()?;
+    if matches!(command, "disable" | "set-voltage") && values.get_flag("stock") {
+        return stock_control(sys, command, values);
+    }
     let device = I2c::open(&sys.path("/dev/i2c-4"), 0x58, true)?;
     if matches!(command, "disable" | "set-voltage") {
         let model = device.block(0x9a)?;
@@ -145,6 +151,82 @@ pub fn run(sys: &System, args: &ArgMatches) -> Result<()> {
         }
         _ => unreachable!(),
     }
+}
+
+fn stock_number(sys: &System, attribute: &str) -> Result<u32> {
+    sys.read(&format!("/sys/bitmicro/power/{attribute}"))?
+        .parse()
+        .with_context(|| format!("invalid stock PSU {attribute}"))
+}
+
+fn stock_output_off(sys: &System) -> Result<()> {
+    for attr in ["enable", "vout", "iout"] {
+        ensure!(
+            stock_number(sys, attr)? == 0,
+            "stock PSU {attr} is not zero; output must be off"
+        );
+    }
+    Ok(())
+}
+
+fn stock_control(sys: &System, command: &str, values: &ArgMatches) -> Result<()> {
+    for (path, expected) in [
+        ("/sys/bitmicro/platform", "ALLWINNER_H616"),
+        ("/sys/bitmicro/hw_name", "CB6"),
+        ("/sys/bitmicro/hw_version", "5"),
+        ("/sys/bitmicro/power/model", "P738B"),
+    ] {
+        ensure!(
+            sys.read(path)? == expected,
+            "stock control requires {path}={expected}"
+        );
+    }
+    let driver = std::fs::read_link(sys.path("/sys/bus/i2c/devices/4-0058/driver"))
+        .context("verify retained PSU kernel driver")?;
+    ensure!(
+        driver.file_name().is_some_and(|name| name == "pmbus-power"),
+        "unexpected PSU kernel driver"
+    );
+    if command == "disable" {
+        // No Vout/Iout precondition: disable must also work while output is on.
+        sys.write_decimal("/sys/bitmicro/power/enable", 0)?;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            match stock_output_off(sys) {
+                Ok(()) => break,
+                Err(error) if Instant::now() >= deadline => {
+                    return Err(error).context(
+                        "PSU disable did not reach measured zero output within 5 seconds",
+                    );
+                }
+                Err(_) => thread::sleep(Duration::from_millis(100)),
+            }
+        }
+        println!("Stock P738B output disabled; enable/Vout/Iout=0/0/0 (driver telemetry)");
+    } else {
+        let millivolts = *values.get_one::<u32>("millivolts").unwrap();
+        ensure!(
+            millivolts.is_multiple_of(10),
+            "stock voltage requires an exact 10 mV increment"
+        );
+        stock_output_off(sys)?;
+        ensure!(
+            sys.gpio_read(201)? == "0" && sys.gpio_read(202)? == "0" && sys.gpio_read(263)? == "0",
+            "stock voltage changes require both resets asserted and switched LDO off"
+        );
+        let centivolts = millivolts / 10;
+        sys.write_decimal("/sys/bitmicro/power/vout_set", centivolts)?;
+        let actual = stock_number(sys, "vout_set")?;
+        ensure!(
+            actual == centivolts,
+            "stock voltage readback mismatch: requested {centivolts}, actual {actual} centivolts"
+        );
+        stock_output_off(sys)?;
+        println!(
+            "Stock VOUT setpoint={millivolts} mV, raw={actual} centivolts; enable/Vout/Iout remain 0/0/0"
+        );
+    }
+    Ok(())
 }
 
 fn native_status(device: &I2c) -> Result<()> {

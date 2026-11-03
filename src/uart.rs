@@ -82,10 +82,7 @@ impl Uart {
             .context("flush stale UART replies")?;
         // Stock uart_write sends logical bytes through the custom kernel ioctl;
         // the caller has already applied the shift to physical TX bytes.
-        let request = 0x5441_u64 | ((command.len() as u64) << 16);
-        // SAFETY: the command buffer remains valid for its encoded length.
-        check(unsafe { libc::ioctl(self.file.as_raw_fd(), request as _, command.as_ptr()) })
-            .context("stock UART transmit ioctl")?;
+        self.transmit(command)?;
         let deadline = Instant::now() + timeout;
         let mut replies = protocol::Replies::default();
         while Instant::now() < deadline {
@@ -130,6 +127,17 @@ impl Uart {
             }
         }
         replies.finish()
+    }
+
+    pub(crate) fn transmit(&mut self, command: &[u8]) -> Result<()> {
+        ensure!(
+            !command.is_empty() && command.len() <= 256,
+            "invalid UART transmit length"
+        );
+        let request = 0x5441_u64 | ((command.len() as u64) << 16);
+        // SAFETY: the command buffer remains valid for its encoded length.
+        check(unsafe { libc::ioctl(self.file.as_raw_fd(), request as _, command.as_ptr()) })
+            .context("stock UART transmit ioctl")
     }
 }
 

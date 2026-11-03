@@ -5,6 +5,8 @@ applications on the tested H616 / CB6 V5 / P738B system. This is a
 development configuration for replacing `btminer` with Mujina. It is
 separate from the six diagnostic binaries and is installed only by an
 explicit `prepare` / `enter` operation.
+The subsequent [PSU/ASIC tests](PSU-ASIC-VALIDATION.md) used this mode
+for guarded power control and complete cold replies on all four slots.
 
 ## Disabled and retained components
 
@@ -134,8 +136,9 @@ vendor binaries and device identifiers are not published here.
 
 This policy removes vendor application supervision; it does not replace
 its protection functions. PID 1 can keep feeding its hardware watchdog
-while Mujina has crashed or stopped controlling the PSU. Before enabling
-hashboard output, implement and validate a separate bounded shutdown
-guardian, fault/temperature handling, cooling interlocks and the cold
-startup sequence described in [BRINGUP.md](BRINGUP.md). Keep output off
-until those prerequisites are satisfied.
+while Mujina has crashed or stopped controlling the PSU. A separate
+bounded shutdown guard and cold-discovery test are now validated in
+[PSU-ASIC-VALIDATION.md](PSU-ASIC-VALIDATION.md). Before continuous mining,
+implement and validate long-running Mujina shutdown, cooling interlocks
+and the remaining startup sequence in [BRINGUP.md](BRINGUP.md). The short
+bench guard does not qualify unattended operation.

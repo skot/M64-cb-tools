@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{Arg, ArgAction, Command, value_parser};
 
-use crate::{diagnostics, hashboard, psu, system::System};
+use crate::{diagnostics, hashboard, power_trial, psu, system::System};
 
 /// Executes a named tool, printing contextual errors and exiting nonzero.
 pub fn main(name: &'static str) {
@@ -26,7 +26,11 @@ fn run(name: &'static str) -> Result<()> {
         "m64-board-info" => diagnostics::info(&sys),
         "controlboard-misc" => diagnostics::misc(&sys, &args),
         "fan-tool" => diagnostics::fan(&sys, &args),
-        "p738b-psu-tool" => psu::run(&sys, &args),
+        "p738b-psu-tool" => match args.subcommand().expect("required subcommand") {
+            ("trial", values) => power_trial::run(&sys, values),
+            ("_guard", values) => power_trial::guard(&sys, values),
+            _ => psu::run(&sys, &args),
+        },
         "hashboard-m64" => hashboard::run(&sys, &args),
         "i2c-probe" => psu::probe(&sys),
         _ => unreachable!(),
@@ -66,13 +70,17 @@ fn command(name: &'static str) -> Command {
             .subcommand(Command::new("set-pwm").about("Set vendor PWM percentage (does not enable fan or change zero_speed)")
                 .arg(Arg::new("target").required(true).value_parser(["0","1","all"]))
                 .arg(Arg::new("percent").required(true).value_parser(value_parser!(u8).range(0..=100)))),
-        "p738b-psu-tool" => app.about("P738B sysfs telemetry and PEC-checked SMBus diagnostics; no output-enable command").subcommand_required(true)
+        "p738b-psu-tool" => app.about("P738B telemetry, output-off controls and guarded reset-held power trials").subcommand_required(true)
+            .subcommand(trial_args(Command::new("trial").about("Bounded 21 V characterization or experimental cold ID read; separate shutdown guard; default 1 A / 25 W cutoffs")))
+            .subcommand(trial_args(Command::new("_guard").hide(true)))
             .subcommand(Command::new("status").about("Read stock driver attributes; safe alongside stock mining"))
             .subcommand(Command::new("native-status").about("Direct PMBus reads with mandatory PEC; requires unowned I2C target"))
             .subcommand(Command::new("identity").about("Read manufacturer SMBus blocks with mandatory PEC"))
-            .subcommand(Command::new("disable").about("Write OPERATION=0 and verify readback"))
+            .subcommand(Command::new("disable").about("Disable output and verify readback")
+                .arg(stock_power()))
             .subcommand(Command::new("set-voltage").about("Set VOUT_COMMAND only with output OFF; 15000..25000 mV")
-                .arg(Arg::new("millivolts").required(true).value_parser(value_parser!(u32).range(15000..=25000)))),
+                .arg(Arg::new("millivolts").required(true).value_parser(value_parser!(u32).range(15000..=25000)))
+                .arg(stock_power())),
         "hashboard-m64" => app.about("M64VL20 physical boards 0/1 and logical UART slots 0..3").subcommand_required(true)
             .subcommand(Command::new("status"))
             .subcommand(Command::new("temps").about("Read discovered hwmon/vendor temperature nodes")
@@ -92,6 +100,48 @@ fn command(name: &'static str) -> Command {
                 .arg(Arg::new("length").required(true).value_parser(value_parser!(u8).range(1..=255)))),
         _ => unreachable!(),
     }
+}
+
+fn stock_power() -> Arg {
+    Arg::new("stock")
+        .long("stock")
+        .action(ArgAction::SetTrue)
+        .help("Use the retained P738B stock kernel driver; voltage resolution is 10 mV; never enables output")
+}
+
+fn trial_args(command: Command) -> Command {
+    command
+        .arg(
+            Arg::new("max-on-ms")
+                .long("max-on-ms")
+                .default_value("1000")
+                .value_parser(value_parser!(u32).range(100..=5000)),
+        )
+        .arg(
+            Arg::new("max-current-ma")
+                .long("max-current-ma")
+                .default_value("1000")
+                .value_parser(value_parser!(u32).range(100..=7500))
+                .help("Explicit output-current abort ceiling; no automatic escalation"),
+        )
+        .arg(
+            Arg::new("max-power-w")
+                .long("max-power-w")
+                .default_value("25")
+                .value_parser(value_parser!(u32).range(1..=150))
+                .help("Explicit output-power abort ceiling; no automatic escalation"),
+        )
+        .arg(
+            Arg::new("dry-run")
+                .long("dry-run")
+                .action(ArgAction::SetTrue)
+                .conflicts_with("id-slot")
+                .help("Exercise guard and logic-supply sequencing with PSU output kept disabled"),
+        )
+        .arg(Arg::new("id-slot").long("id-slot").value_parser(value_parser!(u8).range(0..=3))
+            .help("Experimental cold ID read after a guarded, stable-voltage reset release; no mining work"))
+        .arg(Arg::new("capture-prefix").long("capture-prefix").action(ArgAction::SetTrue).requires("id-slot")
+            .help("Before reading, send the fixed captured pre-PLL prefix; registers are not fully mapped"))
 }
 
 fn board() -> Arg {
@@ -152,6 +202,12 @@ mod tests {
             vec!["hashboard-m64", "reset", "2", "release"],
             vec!["p738b-psu-tool", "set-voltage", "26000"],
             vec!["hashboard-m64", "check", "0", "--timeout-ms", "0"],
+            vec!["p738b-psu-tool", "trial", "--max-on-ms", "5001"],
+            vec!["p738b-psu-tool", "trial", "--max-current-ma", "7501"],
+            vec!["p738b-psu-tool", "trial", "--max-power-w", "151"],
+            vec!["p738b-psu-tool", "trial", "--capture-prefix"],
+            vec!["p738b-psu-tool", "trial", "--dry-run", "--id-slot", "0"],
+            vec!["p738b-psu-tool", "trial", "--id-slot", "4"],
         ] {
             assert!(command(argv[0]).try_get_matches_from(argv).is_err());
         }

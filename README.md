@@ -28,10 +28,11 @@ For Mujina development, [MAINTENANCE-MODE.md](MAINTENANCE-MODE.md)
 documents the optional persistent helper that stops vendor applications,
 blocks stock restart paths and retains PID 1's hardware watchdog.
 
-The latest [interface retest](RETEST-VALIDATION.md) verifies physical
-button sensing and visible LED control, GPIO/PWM transitions and the
-four UARTs' baud configuration. Full independent PSU control and powered
-ASIC communication remain unverified.
+The [interface retest](RETEST-VALIDATION.md) verified physical button/LED
+control, GPIO/PWM transitions and UART baud configuration. The latest
+[PSU and ASIC validation](PSU-ASIC-VALIDATION.md) verifies retained-driver
+PSU control and complete powered cold discovery: 96 BT1980s on each of
+four UARTs. Continuous mining and its protection remain separate work.
 
 ## Tools
 
@@ -40,7 +41,7 @@ ASIC communication remain unverified.
 | `m64-board-info` | Identity, UART/I2C presence, GPIO levels, hwmon, Ethernet link, USB identity, TEE/watchdog presence and watchdog attributes |
 | `controlboard-misc` | Raw red/green LED outputs, IP Found/reset button inputs |
 | `fan-tool` | Stock PWM percentages and kernel tachometer RPM |
-| `p738b-psu-tool` | Stock PSU telemetry; native PEC-checked PMBus identity/telemetry, output disable and output-off voltage setting |
+| `p738b-psu-tool` | Stock telemetry/disable/output-off voltage controls; bounded guarded power/cold-ID trials; native PEC-checked PMBus diagnostics |
 | `hashboard-m64` | Two physical EEPROMs, LM75 temperatures, shared resets/LDO, four UART register links, offline frame/EEPROM decode |
 | `i2c-probe` | Target-specific reads of the six known I2C devices |
 
@@ -157,8 +158,9 @@ The diagnostic binaries never stop daemons, unbind kernel drivers,
 disable watchdogs, feed watchdogs or persist startup changes. The optional
 [maintenance helper](MAINTENANCE-MODE.md) separately handles vendor
 service ownership and startup inhibition. Outside that mode, `keyd` and
-`system-monitor` can still change LEDs. The tools leave GPIO exports and
-commanded levels in place. Fan commands persist until another owner
+`system-monitor` can still change LEDs. Direct GPIO commands leave
+exports and commanded levels in place; guarded power trials force
+reset/LDO/output off afterward. Fan commands persist until another owner
 changes them.
 
 Hardware-session commands refuse a nonzero kernel taint state because
@@ -187,7 +189,22 @@ Kernel-owned addresses are rejected by `I2C_SLAVE`; there is no force
 option. Prefer stock sysfs interfaces when the kernel owns the device.
 Do not unbind production drivers simply to make the native tests pass.
 
-Native P738B commands use kernel SMBus PEC on every transaction:
+Prefer the retained kernel driver for controls on stock firmware:
+
+```sh
+./p738b-psu-tool disable --stock
+./p738b-psu-tool set-voltage 21000 --stock
+```
+
+The explicit stock backend verifies the board/PSU profile and driver.
+Disable verifies measured enable/Vout/Iout zero. Set-voltage requires
+those values already zero, both resets asserted and switched LDO off;
+it accepts exact 10 mV steps in 15–25 V and verifies centivolt readback.
+These commands do not enable output. A known boot ID can be required
+with the global `--expect-boot-id` option.
+
+Native commands use kernel SMBus PEC on every transaction and require
+an unowned I2C target:
 
 ```sh
 ./p738b-psu-tool identity
@@ -199,10 +216,53 @@ Native P738B commands use kernel SMBus PEC on every transaction:
 Control writes require a PEC-valid P738B model response. Voltage
 setting is limited to 15–25 V, requires OPERATION=0 and
 VOUT_MODE=0x17, and verifies the encoded setpoint by readback. It rounds
-to the nearest 1/512 V. There is deliberately no PSU output-enable
-command: independent cooling/protection and shutdown must first be
-validated. Output disable verifies OPERATION, which does not establish
-that stored energy or measured output voltage has reached zero.
+to the nearest 1/512 V. Native output disable verifies OPERATION, which
+does not establish that stored energy or measured output voltage has
+reached zero. Do not detach the driver to make these native commands run.
+
+### Bounded power and cold discovery
+
+The `trial` command is the only output-on path. It starts a separate
+shutdown guard and requires a known boot ID, persistent maintenance mode,
+the supported profile/driver, stopped vendor/miner applications, output
+off, asserted resets/returns, LDO off, cooling enabled at 99%, readable
+temperatures and clear PSU fault words. Confirm external coolant
+circulation and access to main-power disconnect before a powered trial.
+
+```sh
+BOOT=$(cat /proc/sys/kernel/random/boot_id)
+./p738b-psu-tool --expect-boot-id "$BOOT" trial --dry-run
+./p738b-psu-tool --expect-boot-id "$BOOT" trial \
+    --max-on-ms 3000 --max-current-ma 7500 --max-power-w 150 \
+    --id-slot 0 --capture-prefix
+```
+
+The successful test parameters above are for the validated M64VL20 unit;
+the captured prefix is not qualified for other revisions/bins. Select
+one slot 0–3 per trial. Its physical board's two chains share reset.
+The guard temporarily selects 21 V, raises shared logic power, enables
+output and requires a one-second minimum plus three stable voltage
+samples before releasing that board. It checks the powered reset return.
+The fixed, CRC/write-allowlisted 1832-frame prefix uses 375000 baud and
+shift 0, then requires complete status and model sets, IDs 0–95. No
+known PLL/core/work-register writes are included; allowed register
+semantics are not all mapped and cores-disabled state is not proven.
+
+Every successful or failed normal trial asserts resets, disables LDO
+and PSU output, verifies zero output and restores the original setpoint.
+The UART termios state is restored. The separate guard also shuts down
+on parent loss, signal, fault, invalid telemetry or limit breach; its
+lock remains held through cleanup. Parent SIGKILL can leave the
+temporary setpoint in place while output is off. `--dry-run` exercises
+logic-power/guard sequencing without enabling the PSU and cannot be
+combined with `--id-slot`.
+
+Default cutoffs are 1 second / 1 A / 25 W and may stop during the ramp.
+Maximum selectable limits are 5 seconds / 7.5 A / 150 W; no retry raises
+them automatically. These software deadlines depend on responsive
+kernel I/O. This is a short bench test, not a continuous mining or
+unattended cooling/protection controller. See the detailed
+[validation and limitations](PSU-ASIC-VALIDATION.md).
 
 ### Hashboard reset and logic power
 

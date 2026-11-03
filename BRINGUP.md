@@ -1,9 +1,10 @@
 # Hashboard power-up investigation
 
-This is an evidence and implementation plan, not a validated independent
-cold-start recipe. Stock startup works on the assembled miner; the
-current tools do not yet implement all of its transport and protection
-behavior.
+Bounded independent PSU control and pre-PLL cold discovery are now
+validated on the assembled miner: see
+[PSU-ASIC-VALIDATION.md](PSU-ASIC-VALIDATION.md). This document preserves
+the investigation and remaining requirements for full Mujina startup;
+continuous mining and production protection are not implemented here.
 
 ## Current finding: why mining resumed
 
@@ -43,16 +44,21 @@ The P738B profile establishes these policy settings:
 | Normal power limit | 4200 W | Mining profile; not an idle-test allowance |
 | Output current profile | 295 A, maximum 305 A | Mining limits; not an idle-test threshold |
 
-These values do not by themselves qualify a low-energy independent
-test. No measured reset-held current bound was established in the
-reviewed evidence.
+These mining-profile values do not establish an idle-test allowance.
+Later guarded characterization reached about 21.1 V with resets held,
+but power was still rising when the selected 150 W cutoff operated.
+A steady idle-current bound remains unestablished. Successful short
+discovery used explicit 7.5 A / 150 W / three-second limits and shut
+down after the replies; those are not continuous-mining limits.
 
 The retained `power_hal_set_enable` pseudocode raises GPIO263 before
 calling the PSU enable callback. Its disable branch lowers GPIO263
 before calling the PSU disable callback. Separately measured startup
 timing establishes that the LDO rises about 1.012 seconds before reset
-release. The complete synchronized relationship between PSU output
-stability and all reset/LDO transitions still needs to be recorded.
+release. Exact-live library analysis subsequently confirmed the same
+LDO-before-PSU ordering. The bounded test verified command/readback and
+powered reset-return transitions; synchronized electrical measurements
+of the rails and reset signals remain open.
 
 The two controls remain distinct:
 
@@ -60,9 +66,12 @@ The two controls remain distinct:
 - GPIO263 controls the shared switched logic supply.
 - GPIO201/202 hold the two physical hashboards in active-low reset.
 
-The stock software also performs voltage ramping/stability checks and
-ASIC initialization. Reproducing only the enable write omits those
-operations.
+Fresh analysis of the matching stock boot helper shows a one-second
+water-mode wait after enable followed by enable readback, then powered
+reset-return checks before UART initialization. That helper does not
+call the separately named voltage-stability function. Our test additionally
+requires repeated near-target voltage samples before releasing reset.
+Reproducing only an enable write omits the rest of this sequence.
 
 ## Voltage encoding
 
@@ -131,30 +140,38 @@ prefix-plus-96-address experiment:
 - The first captured status read follows many core-control writes.
 - The captured identity read occurs after the baud/rotation transition.
 
-An earlier core-disabled identity gate is an experiment to design and
-validate, not a captured proven minimal recipe. No mining work or core
-enable sequence should be replayed merely to obtain an ID response.
+A later bounded experiment successfully inserted status/model reads
+after the captured 1832-frame pre-PLL prefix on all four slots, producing
+96 complete CRC-valid IDs per query. This establishes a working early
+read on this unit, not a minimal prefix or proof that cores were disabled.
+The allowed registers are not all semantically mapped. No known PLL,
+core-control or mining-work register writes were used for this test.
 
-## Requirements before independent energization
+## Implemented gates and remaining startup work
 
-1. Establish an explicit owner for PSU, GPIOs and all four UARTs. Leave
-   the kernel PSU and temperature drivers attached.
-2. Use a verified output-off starting state, with both resets asserted,
-   and establish the required LDO/PSU ordering from synchronized stock
-   evidence before writing a new startup controller.
-3. Set and verify a profile-supported boot target while output is off;
-   do not extrapolate a discovery voltage from the policy minimum.
-4. Add bounded enable duration, validated idle-current/power bounds,
-   supported fault/temperature reads and a separate shutdown guardian.
-   Preserve coolant circulation; existing temperature readings do not
-   prove flow rate or thermal protection.
-5. Reproduce the verified 375000 discovery baud / shift-0 transport on
-   the correct shared-clock setup, and resolve the minimum discovery
-   sequence without enabling unrestricted hashing.
-6. Require complete, CRC-valid discovery and identity sets before
-   progressing to further configuration or diagnostic work.
-7. Assert resets, disable output and verify measured voltage/current
-   have fallen on every exit, timeout or fault.
+1. The bounded trial owns PSU/GPIO/UART operations under the shared
+   diagnostic lock, retained by its independent guard through shutdown.
+   Kernel PSU and temperature drivers remain attached.
+2. Trials require measured output off, both reset outputs/returns low
+   and LDO off. Established stock command ordering is reproduced;
+   physical rail and signal timing still needs measurement.
+3. Driver-backed setpoint and disable are verified. Trials use the
+   supported 21 V boot target and verify voltage feedback before reset
+   release; the policy minimum is not used as a guessed ID voltage.
+4. The separate process now enforces bounded duration and selected
+   current/power, fault and temperature cutoffs. A steady idle envelope,
+   long-running Mujina heartbeat/shutdown protection and verified
+   coolant-flow/thermal interlocks remain required for continuous work.
+   Software cutoff timing depends on responsive kernel I/O.
+5. Pre-PLL discovery at 375000 baud / shift 0 works on all four slots.
+   The validated captured prefix is not minimal. Powered 12 Mbaud
+   transition, PLL/core setup and mining work/nonces remain unverified.
+6. Both status and model queries returned all 96 CRC-valid IDs per slot.
+   Preserve these complete-set requirements in further initialization.
+7. The trial restores resets, LDO and PSU output off and verifies zero
+   driver voltage/current on normal exit, timeout and tested faults.
+   Parent death is handled by the separate guard; the temporary setpoint
+   may need explicit restoration after parent SIGKILL.
 8. Treat any changed boot ID or kernel exception as a new session. The
    vendor supervisor can reboot after a warning, and ordinary stock
    boot can resume mining. Boot-ID checks alone do not prevent that
@@ -165,9 +182,9 @@ enable sequence should be replayed merely to obtain an ID response.
 The tools now expose boot ID, uptime and kernel taint in inventory.
 Hardware-session commands reject a nonzero taint value, and the global
 `--expect-boot-id ID` option refuses a different controller boot. These
-guards are implemented and tested; they do not constitute the power-up
-guardian or an output-enable command. Fifteen offline tests pass, and
-the deployed boot-ID guard rejected an intentionally mismatched ID.
+guards are implemented and tested. The later bounded power guard and
+test results are described in [PSU-ASIC-VALIDATION.md](PSU-ASIC-VALIDATION.md);
+they do not constitute the full production mining/protection controller.
 
 The miner was initially left stopped after the output-off baud check: both resets
 asserted, switched LDO off, cooling still at 99%, supervisor running and

@@ -214,6 +214,18 @@ mod tests {
         );
         let mut bytes = hex::decode("00000002198031").unwrap();
         assert_eq!(response(&bytes).unwrap(), (0, 0, &[0x19, 0x80][..]));
+        // Live guarded cold-start replies, 2026-11-03: assigned endpoints
+        // and the common unassigned identifier observed before addressing.
+        for (wire, id) in [
+            ("000100021980e2", 1),
+            ("005f00021980e9", 95),
+            ("0ff00002198089", 0xff0),
+        ] {
+            assert_eq!(
+                response(&hex::decode(wire).unwrap()).unwrap(),
+                (id, 0, &[0x19, 0x80][..])
+            );
+        }
         bytes[4] ^= 1;
         assert!(response(&bytes).is_err());
         assert!(response(&bytes[..4]).is_err());

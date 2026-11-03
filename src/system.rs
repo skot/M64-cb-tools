@@ -18,6 +18,12 @@ pub struct System {
 
 pub struct Session(File);
 
+impl AsRawFd for Session {
+    fn as_raw_fd(&self) -> std::os::fd::RawFd {
+        self.0.as_raw_fd()
+    }
+}
+
 impl System {
     pub fn path(&self, path: impl AsRef<Path>) -> PathBuf {
         self.root
@@ -40,6 +46,25 @@ impl System {
             .open(self.path(path))
             .with_context(|| format!("open {path} for writing"))?;
         write_attribute(&mut file, value).with_context(|| format!("write {path}"))
+    }
+
+    /// Some vendor power attributes consume the decimal bytes without a
+    /// newline and report a short write if a newline is included.
+    pub fn write_decimal(&self, path: &str, value: u32) -> Result<()> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .open(self.path(path))
+            .with_context(|| format!("open {path} for writing"))?;
+        let bytes = value.to_string();
+        let count = file
+            .write(bytes.as_bytes())
+            .with_context(|| format!("write {path}"))?;
+        ensure!(
+            count == bytes.len(),
+            "short vendor attribute write: {count}/{} bytes",
+            bytes.len()
+        );
+        Ok(())
     }
 
     pub fn show(&self, path: &str) -> bool {

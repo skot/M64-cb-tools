@@ -1,10 +1,11 @@
 # M64 validation reports
 
-The latest [maintenance-mode interface retest](RETEST-VALIDATION.md)
-includes physical button presses and visible LEDs, GPIO/PWM transitions,
-all four UARTs at discovery/mining baud, repeated EEPROM reads, driver
-ownership refusals and the current boundaries on independent PSU control.
-**Full independent control of all interfaces remains unverified.**
+The latest [PSU and powered-ASIC validation](PSU-ASIC-VALIDATION.md)
+verifies stock-driver PSU controls and complete cold discovery/model
+replies from 96 BT1980s on each of four UARTs. The preceding
+[interface retest](RETEST-VALIDATION.md) covers physical buttons/LEDs,
+GPIO/PWM changes, baud setup, EEPROMs and kernel ownership boundaries.
+Continuous mining and unattended protection remain unverified.
 USB/FEL and TEE functional tests are outside the required Mujina scope.
 Tachometer qualification is conditional on those inputs being used by
 the installed cooling system. See the retest report's acceptance plan.
@@ -12,10 +13,10 @@ the installed cooling system. See the retest report's acceptance plan.
 | Current coverage | Verified | Remaining |
 | --- | --- | --- |
 | Operator controls | Both visible LED colors; physical press/release of both buttons | Exact visible LED polarity; long-press actions deliberately inhibited |
-| GPIO and cooling outputs | Both reset transitions, shared LDO command/readback, each PWM 99→98→99 | Powered reset returns, physical voltages/waveforms, tach reference and coolant flow |
-| Four ASIC UARTs | Open/TX-ioctl acceptance, 375 kbaud/12 Mbaud driver readback, bounded timeout and exact termios restore | Physical TX/RX and powered CRC-valid ASIC replies |
-| PSU, EEPROM and temperatures | Supported stock telemetry; repeated EEPROM reference matches; all eight hwmon/thermal reads | Native I2C/PEC and PSU controls blocked by kernel ownership; no independent PSU enable/protection |
-| Platform ownership | Persistent vendor inhibition; PID 1 watchdog retained; Ethernet transfer; boot/taint/lock guards and Mujina-owner exclusion | Mujina crash shutdown guardian; USB/FEL and TEE excluded from required scope |
+| GPIO and cooling outputs | Powered selected-board reset/return transitions; shared LDO sequencing; each PWM 99→98→99 | Physical voltages/waveforms, used tach inputs and coolant flow |
+| Four ASIC UARTs | 96 CRC-valid status and model IDs per slot at 375 kbaud; exact termios restore; host 12 Mbaud setup | Powered 12 Mbaud transition, PLL/core startup and mining work/nonces |
+| PSU, EEPROM and temperatures | Retained-driver disable/setpoint controls and guarded 21 V enable/shutdown; reference EEPROM images and temperature reads | Native I2C/PEC ownership; steady idle-current bounds and electrical calibration |
+| Platform ownership | Persistent vendor inhibition; bounded separate shutdown process; PID 1 OS watchdog retained; boot/taint/lock/Mujina-owner guards | Long-running Mujina/cooling protection; USB/FEL and TEE excluded from required scope |
 
 For persistent vendor-service inhibition and rollback, see
 [MAINTENANCE-MODE.md](MAINTENANCE-MODE.md). The original controller-only

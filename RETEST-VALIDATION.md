@@ -1,5 +1,9 @@
 # Maintenance-mode interface retest, 2026-11-03
 
+For subsequent verified PSU controls and complete powered cold replies
+from all four slots, see [PSU-ASIC-VALIDATION.md](PSU-ASIC-VALIDATION.md).
+The boundaries below describe this earlier output-off session.
+
 **Full independent control of every M64 interface is not yet verified.**
 The tools control the tested GPIO/PWM outputs, read the attached EEPROMs
 and stock-driver telemetry, and configure all four ASIC UARTs. Native

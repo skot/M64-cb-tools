@@ -6,34 +6,36 @@ see [VALIDATION.md](VALIDATION.md). Subsequent live assembled-miner
 observations are in [POWERED-VALIDATION.md](POWERED-VALIDATION.md).
 Exclusive PSU-off checks are in
 [MAINTENANCE-VALIDATION.md](MAINTENANCE-VALIDATION.md).
-The latest [maintenance-mode retest](RETEST-VALIDATION.md) adds physical
-button/LED observations, two-rate UART driver readback and current
-ownership/control limitations. Full independent control is not yet verified.
+The [maintenance-mode retest](RETEST-VALIDATION.md) adds physical
+button/LED observations and two-rate UART driver readback. The latest
+[PSU/ASIC validation](PSU-ASIC-VALIDATION.md) verifies guarded retained-driver
+power control and complete cold ASIC replies; full mining/protection
+startup is still separate work.
 For Mujina replacement, USB/FEL and TEE functional tests are outside the
 required scope. Tach inputs require functional qualification only if
 used by the installed cooling/protection system; inventory is retained.
 
 | Interface | Mapping | Implemented check | Remaining validation |
 | --- | --- | --- | --- |
-| ASIC slot 0 | `/dev/ttyS1`, physical board 0 | CRC-checked ID/register command; ioctl accepted, 375 kbaud/12 Mbaud driver readback and exact termios restore verified | Physical TX/RX, powered CRC-valid ASIC replies and cold startup |
-| ASIC slot 1 | `/dev/ttyS4`, physical board 0 | Same two-rate ioctl/driver/restore checks verified | Same |
-| ASIC slot 2 | `/dev/ttyS2`, physical board 1 | Same two-rate ioctl/driver/restore checks verified | Same |
-| ASIC slot 3 | `/dev/ttyS3`, physical board 1 | Same two-rate ioctl/driver/restore checks verified | Same |
-| Reset | GPIO201/202, active low, physical boards 0/1 | PSU-off assert/release command readback verified | Powered return propagation and electrical timing |
-| Reset return | GPIO193/194 | Read exported raw level | GPIO194 not directly captured in reference notes |
-| Shared switched LDO | GPIO263, active high | PSU-off on/off command readback verified with both resets asserted | Physical voltage/settling measurement |
+| ASIC slot 0 | `/dev/ttyS1`, physical board 0 | Powered 375 kbaud cold status/model replies: all 96 IDs, CRC valid; termios restored; 12 Mbaud host setup verified | Powered 12 Mbaud transition, PLL/core setup, work/nonces and waveform measurement |
+| ASIC slot 1 | `/dev/ttyS4`, physical board 0 | Same complete 96-ID powered cold checks passed | Same |
+| ASIC slot 2 | `/dev/ttyS2`, physical board 1 | Same complete 96-ID powered cold checks passed | Same |
+| ASIC slot 3 | `/dev/ttyS3`, physical board 1 | Same complete 96-ID powered cold checks passed | Same |
+| Reset | GPIO201/202, active low, physical boards 0/1 | Guarded powered release after voltage gate; selected return high, other board low; reset restored on exit | Electrical levels/timing via scope |
+| Reset return | GPIO193/194 | Both powered low→high→low paths exercised with selected physical-board reset | Independent voltage/propagation timing measurement |
+| Shared switched LDO | GPIO263, active high | On/off command readback and LDO-before-PSU sequence used in successful guarded cold discovery | Physical voltage/settling measurement |
 | Hashboard EEPROM | I2C10, `0x50`/`0x51`, BL24C02 | Repeated kernel images/reference hashes matched in maintenance mode; board-0 CRC mismatch unchanged | Programming untested. Historical native read matched, but driver rebind caused warning/reboot; use kernel paths |
 | Hashboard temperature | I2C10, `0x48`/`0x49`, LM75 class | Hwmon reads matched stock paired-slot temperatures | Native reads and calibration comparison |
 | Environment sensor | I2C4, `0x4f`, LM75 class | Hwmon read works with PSU and hashboards absent | Exact physical sensor location/medium |
-| P738B PSU | I2C4, `0x58` | Stock identity/telemetry works; native identity/status/disable/setpoint correctly refuse bound target with EBUSY | Live native SMBus/PEC and control writes unverified; no output-enable command or independent protection guardian |
+| P738B PSU | I2C4, `0x58` | Stock telemetry, verified disable/output-off setpoint roundtrip and bounded 21 V enable/cutoff; separate child guard; driver remains attached | Native userspace PEC still EBUSY; steady idle characterization, calibration and continuous-mining protection |
 | Cooling channels | `/sys/bitmicro/fan/fan0` and `fan1` | Each PWM 99→98→99 readback verified; enables 1, zero-speed 0; all four RPM attributes readable | Actual channel/tach wiring, waveform and reference RPM; no flow certification |
 | LEDs | Red GPIO257, green GPIO258 | Raw high/low readback and operator-confirmed separate red/green illumination with vendor services stopped | Exact visible polarity/order and electrical measurement |
 | Buttons | IP Found GPIO234, reset GPIO233 | Operator presses recorded 1→0→1 on each input | Long-press behavior deliberately inhibited |
 | SoC temperature | Named hwmon and thermal-zone nodes | Attribute discovery/read | Thermal-zone reads verified on stock Linux |
 | Ethernet | `/sys/class/net/*` | 100 Mb/s link and SSH deployment verified | Throughput/packet loopback not implemented |
-| USB | `/sys/bus/usb/devices`, `/sys/class/udc` | VID/PID/product and gadget state observation | External host/FEL test not implemented |
-| TEE | `/dev/tee0`, `/dev/teepriv0` | Presence only | No trusted-application calls |
-| Watchdog/keepalive | PID 1 watchdog descriptor, read-only `ubus` status; vendor keepalive sysfs | PID 1 watchdog running 16 s / feed 5 s; vendor keepalive 0 in persistent maintenance mode | Watchdog sysfs attributes absent on tested stock firmware; no takeover/expiry or Mujina crash-protection test |
+| USB | `/sys/bus/usb/devices`, `/sys/class/udc` | VID/PID/product and gadget state observation | Functional tests outside required Mujina scope |
+| TEE | `/dev/tee0`, `/dev/teepriv0` | Presence only | Functional calls outside required Mujina scope |
+| Watchdog/keepalive | PID 1 watchdog descriptor, read-only `ubus` status; vendor keepalive sysfs | OS watchdog running 16 s / feed 5 s; vendor keepalive 0; bounded trial guard handles parent loss | Watchdog sysfs absent; no takeover/expiry or long-running Mujina crash-protection test |
 | BTROM | I2C10 config targets `0x18–0x1b`, `0x1e`, `0x1f` | Not probed | Physical mapping and authenticated protocol |
 | J1 cooling port | Ground confirmed; T43 25 kHz PWM candidate; T41/T42 unresolved | No electrical test | Continuity and waveform measurements |
 
