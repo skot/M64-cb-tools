@@ -1,5 +1,8 @@
 # Assembled-miner validation, 2026-11-03
 
+For the subsequent stopped-miner checks, see
+[MAINTENANCE-VALIDATION.md](MAINTENANCE-VALIDATION.md).
+
 Tested the CB6 V5 / H616 controller in the assembled M64VL20 with its
 P738B PSU, two hashboards and user-confirmed coolant circulation. Stock
 AArch64 Linux 4.9.170 and `btminer` were already running. The PSU was

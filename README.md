@@ -15,6 +15,10 @@ that required attached hardware. The subsequent
 driver telemetry, both EEPROMs and stock UART activity while mining
 remained running.
 
+The later [PSU-off maintenance session](MAINTENANCE-VALIDATION.md)
+verified reset/LDO command readback and native EEPROM reads after a
+temporary EEPROM-only driver handoff, then restored all driver bindings.
+
 ## Tools
 
 | Binary | Interface coverage |

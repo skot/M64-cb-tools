@@ -4,6 +4,8 @@ Target: M64VL20 / CB6 V5 SL V2.0. Other revisions need an independently
 verified profile. Controller-only checks were exercised on 2026-11-03;
 see [VALIDATION.md](VALIDATION.md). Subsequent live assembled-miner
 observations are in [POWERED-VALIDATION.md](POWERED-VALIDATION.md).
+Exclusive PSU-off checks are in
+[MAINTENANCE-VALIDATION.md](MAINTENANCE-VALIDATION.md).
 
 | Interface | Mapping | Implemented check | Remaining validation |
 | --- | --- | --- | --- |
@@ -11,10 +13,10 @@ observations are in [POWERED-VALIDATION.md](POWERED-VALIDATION.md).
 | ASIC slot 1 | `/dev/ttyS4`, physical board 0 | Same | Same |
 | ASIC slot 2 | `/dev/ttyS2`, physical board 1 | Same | Same |
 | ASIC slot 3 | `/dev/ttyS3`, physical board 1 | Same | Same |
-| Reset | GPIO201/202, active low, physical boards 0/1 | Assert/release; raw status | Verify return and timing under tool ownership |
+| Reset | GPIO201/202, active low, physical boards 0/1 | PSU-off assert/release command readback verified | Powered return propagation and electrical timing |
 | Reset return | GPIO193/194 | Read exported raw level | GPIO194 not directly captured in reference notes |
-| Shared switched LDO | GPIO263, active high | Switch with both resets asserted | Voltage/settling measurement |
-| Hashboard EEPROM | I2C10, `0x50`/`0x51`, BL24C02 | Both live sysfs reads matched reference dumps; known board-0 CRC mismatch surfaced | Native combined-I2C path not live-tested |
+| Shared switched LDO | GPIO263, active high | PSU-off on/off command readback verified with both resets asserted | Physical voltage/settling measurement |
+| Hashboard EEPROM | I2C10, `0x50`/`0x51`, BL24C02 | Kernel and native reads matched exactly after EEPROM-only driver handoff; bindings restored | No programming tested; board-0 CRC mismatch unchanged |
 | Hashboard temperature | I2C10, `0x48`/`0x49`, LM75 class | Hwmon reads matched stock paired-slot temperatures | Native reads and calibration comparison |
 | Environment sensor | I2C4, `0x4f`, LM75 class | Hwmon read works with PSU and hashboards absent | Exact physical sensor location/medium |
 | P738B PSU | I2C4, `0x58` | Live stock-driver telemetry including indexed fan and temperatures | Native SMBus/PEC and controls; unsupported generic nodes can affect error reporting |
