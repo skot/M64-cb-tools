@@ -16,6 +16,7 @@ done
 cp "$TOOLS_DIR/scripts/capture-status.sh" "$BUNDLE/capture-status.sh"
 cp "$TOOLS_DIR/README.md" "$BUNDLE/README.md"
 cp "$TOOLS_DIR/INTERFACES.md" "$BUNDLE/INTERFACES.md"
+cp "$TOOLS_DIR/VALIDATION.md" "$BUNDLE/VALIDATION.md"
 cp "$REPO_DIR/LICENSE" "$BUNDLE/LICENSE"
 (
     cd "$BUNDLE"

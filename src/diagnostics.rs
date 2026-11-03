@@ -45,10 +45,15 @@ pub fn info(sys: &System) -> Result<()> {
         "/sys/class/watchdog/watchdog0/state",
         "/sys/class/watchdog/watchdog0/timeout",
         "/sys/class/watchdog/watchdog0/nowayout",
-        "/proc/tty/driver/serial",
     ] {
         sys.show(path);
     }
+    let serial = if sys.path("/proc/tty/driver/uart").exists() {
+        "/proc/tty/driver/uart"
+    } else {
+        "/proc/tty/driver/serial"
+    };
+    sys.show(serial);
     for path in [
         "/dev/tee0",
         "/dev/teepriv0",
@@ -186,6 +191,19 @@ pub fn temps(sys: &System) -> Result<()> {
             }
         }
     }
+    if let Ok(names) = sys.children("/sys/class/thermal") {
+        for name in names
+            .into_iter()
+            .filter(|name| name.starts_with("thermal_zone"))
+        {
+            let base = format!("/sys/class/thermal/{name}");
+            let identity = sys
+                .read(&format!("{base}/type"))
+                .unwrap_or_else(|_| "unknown".into());
+            println!("sensor={identity}");
+            successes += usize::from(sys.show(&format!("{base}/temp")));
+        }
+    }
     for path in [
         "/sys/bitmicro/power/temp",
         "/sys/bitmicro/power/water_temp",
@@ -196,7 +214,7 @@ pub fn temps(sys: &System) -> Result<()> {
         }
     }
     println!(
-        "temperature attributes read={successes}; hwmon values are millidegrees C; vendor values remain raw"
+        "temperature attributes read={successes}; hwmon/thermal values are millidegrees C; vendor values remain raw"
     );
     ensure!(successes > 0, "no readable temperature attributes");
     Ok(())

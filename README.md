@@ -7,9 +7,10 @@ They follow the small-tool layout of
 [amlogic-cb-tools](https://github.com/skot/amlogic-cb-tools).
 
 The implementation is built from the local M64 configuration, connector
-notes, PMBus captures and BT1980 UART captures. **These new binaries have
-not been tested on an M64 yet.** Offline tests and cross-compilation do
-not establish live interface correctness.
+notes, PMBus captures and BT1980 UART captures. **Controller-only bench
+validation completed on 2026-11-03**, without hashboards or a PSU.
+See [VALIDATION.md](VALIDATION.md) for verified behavior and the tests
+that still require attached hardware.
 
 ## Tools
 
@@ -62,8 +63,14 @@ cd /tmp
 tar xzf m64-cb-tools-aarch64-unknown-linux-musl.tar.gz
 cd m64-cb-tools-aarch64-unknown-linux-musl
 sha256sum -c SHA256SUMS
-sh ./capture-status.sh /tmp/m64-first-status
+sh ./capture-status.sh --controller-only /tmp/m64-first-status
 ```
+
+Use `--controller-only` when no PSU or hashboards are attached; omit it
+for a complete assembled miner. Stock SSH may require the per-command
+options `-o HostKeyAlgorithms=+ssh-rsa` and
+`-o PubkeyAcceptedAlgorithms=+ssh-rsa` with modern OpenSSH, for both `ssh`
+and legacy `scp -O`.
 
 Fetch the report directory before reboot. The capture script uses only
 stock-driver reads and already exported GPIO levels. It skips EEPROM
@@ -97,9 +104,13 @@ the reference machine mined with one such board.
 
 Hwmon devices are discovered by directory and reported with their names,
 rather than assuming a fixed `hwmon5`. Hwmon temperatures are raw
-millidegrees Celsius. Vendor power values retain their raw representation
+millidegrees Celsius; named thermal zones provide the SoC temperatures
+on the tested stock kernel. Vendor power values retain their raw representation
 until their units are confirmed on the current firmware. A water-cooled
 M64VL20 may report zero control-board fan RPM; the PSU fan is separate.
+
+PSU status rejects the stock driver's `unknow`/`(null)` identity when no
+PSU is attached. Sentinel voltage values are not reported as measurements.
 
 ## Exclusive hardware experiments
 

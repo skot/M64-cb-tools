@@ -126,3 +126,29 @@ fn offline_frame_decoder_checks_crc_without_proc_or_device_access() {
     );
     assert!(!result.status.success());
 }
+
+#[test]
+fn disconnected_psu_placeholders_are_not_valid_telemetry() {
+    let board = Board::new();
+    board.put("/sys/bitmicro/power/name", b"unknow\n");
+    board.put("/sys/bitmicro/power/model", b"(null)\n");
+    board.put("/sys/bitmicro/power/vout", b"6553500\n");
+    let result = board.run(env!("CARGO_BIN_EXE_p738b-psu-tool"), &["status"]);
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("PSU unavailable"));
+    assert!(!String::from_utf8_lossy(&result.stdout).contains("6553500"));
+}
+
+#[test]
+fn thermal_zones_are_available_without_soc_hwmon_nodes() {
+    let board = Board::new();
+    board.put(
+        "/sys/class/thermal/thermal_zone0/type",
+        b"cpu_thermal_zone\n",
+    );
+    board.put("/sys/class/thermal/thermal_zone0/temp", b"39833\n");
+    let result = board.run(env!("CARGO_BIN_EXE_hashboard-m64"), &["temps"]);
+    assert!(result.status.success());
+    let output = String::from_utf8_lossy(&result.stdout);
+    assert!(output.contains("cpu_thermal_zone") && output.contains("39833"));
+}

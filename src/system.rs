@@ -26,7 +26,10 @@ impl System {
     pub fn read(&self, path: &str) -> Result<String> {
         fs::read_to_string(self.path(path))
             .with_context(|| format!("read {path}"))
-            .map(|s| s.trim().to_owned())
+            .map(|s| {
+                s.trim_matches(|c: char| c.is_whitespace() || c == '\0')
+                    .to_owned()
+            })
     }
 
     pub fn write(&self, path: &str, value: impl std::fmt::Display) -> Result<()> {
@@ -35,7 +38,7 @@ impl System {
             .write(true)
             .open(self.path(path))
             .with_context(|| format!("open {path} for writing"))?;
-        writeln!(file, "{value}").with_context(|| format!("write {path}"))
+        write_attribute(&mut file, value).with_context(|| format!("write {path}"))
     }
 
     pub fn show(&self, path: &str) -> bool {
@@ -128,6 +131,19 @@ impl System {
     }
 }
 
+fn write_attribute(writer: &mut impl Write, value: impl std::fmt::Display) -> Result<()> {
+    // sysfs interprets each write as a complete command. Formatting directly
+    // into File can split the value and newline into separate commands.
+    let bytes = format!("{value}\n");
+    let count = writer.write(bytes.as_bytes())?;
+    ensure!(
+        count == bytes.len(),
+        "short sysfs write: {count}/{} bytes",
+        bytes.len()
+    );
+    Ok(())
+}
+
 impl Drop for Session {
     fn drop(&mut self) {
         // SAFETY: the descriptor stays valid for this object's lifetime.
@@ -154,4 +170,34 @@ pub fn selection(value: &str, count: usize) -> Result<Vec<usize>> {
         bail!("index must be 0..{} or all", count - 1);
     }
     Ok(vec![index])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Attribute {
+        command: Option<Vec<u8>>,
+    }
+
+    impl Write for Attribute {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            if self.command.is_some() {
+                return Err(io::Error::other("second sysfs command rejected"));
+            }
+            self.command = Some(bytes.to_vec());
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn sysfs_attribute_is_one_complete_command() {
+        let mut attribute = Attribute { command: None };
+        write_attribute(&mut attribute, "in").unwrap();
+        assert_eq!(attribute.command.unwrap(), b"in\n");
+    }
 }

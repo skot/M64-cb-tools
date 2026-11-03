@@ -1,6 +1,11 @@
 #!/bin/sh
 # Read-only stock-driver observations. Never stops services or opens UARTs.
 set -eu
+CONTROLLER_ONLY=0
+if [ "${1:-}" = --controller-only ]; then
+    CONTROLLER_ONLY=1
+    shift
+fi
 OUT=${1:-"./m64-status-$(date -u +%Y%m%dT%H%M%SZ)"}
 BIN_DIR=${2:-"$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"}
 # Refuse an existing directory so an earlier capture cannot be overwritten.
@@ -21,12 +26,18 @@ capture() {
 capture board-info "$BIN_DIR/m64-board-info"
 capture gpio "$BIN_DIR/controlboard-misc" status
 capture cooling "$BIN_DIR/fan-tool" status
-capture psu "$BIN_DIR/p738b-psu-tool" status
+if [ "$CONTROLLER_ONLY" -eq 1 ]; then
+    printf 'psu\tSKIP (controller-only session; no PSU attached)\n' >> "$OUT/results.tsv"
+else
+    capture psu "$BIN_DIR/p738b-psu-tool" status
+fi
 capture hashboards "$BIN_DIR/hashboard-m64" status
 capture temperatures "$BIN_DIR/hashboard-m64" temps
 for board in 0 1; do
     case $board in 0) address=0050;; 1) address=0051;; esac
-    if [ -r "/sys/bus/i2c/devices/10-$address/eeprom" ]; then
+    if [ "$CONTROLLER_ONLY" -eq 1 ]; then
+        printf 'eeprom-%s\tSKIP (controller-only session; no hashboard attached)\n' "$board" >> "$OUT/results.tsv"
+    elif [ -r "/sys/bus/i2c/devices/10-$address/eeprom" ]; then
         capture "eeprom-$board" "$BIN_DIR/hashboard-m64" eeprom "$board"
     else
         printf 'eeprom-%s\tSKIP (no kernel EEPROM node; direct I2C needs an exclusive session)\n' "$board" >> "$OUT/results.tsv"

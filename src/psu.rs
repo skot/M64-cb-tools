@@ -8,10 +8,22 @@ use crate::{i2c::I2c, protocol, system::System};
 pub fn run(sys: &System, args: &ArgMatches) -> Result<()> {
     let (command, values) = args.subcommand().expect("required subcommand");
     if command == "status" {
+        let name = sys.read("/sys/bitmicro/power/name").unwrap_or_default();
+        let model = sys.read("/sys/bitmicro/power/model").unwrap_or_default();
+        println!("/sys/bitmicro/power/name: {name}");
+        println!("/sys/bitmicro/power/model: {model}");
+        let identified = |text: &str| {
+            !matches!(
+                text.to_ascii_lowercase().as_str(),
+                "" | "unknow" | "unknown" | "(null)"
+            )
+        };
+        ensure!(
+            identified(&name) || identified(&model),
+            "PSU unavailable: stock driver has no valid PSU identity; telemetry placeholders are not measurements"
+        );
         let mut successes = 0;
         for attr in [
-            "name",
-            "model",
             "vender",
             "serial_no",
             "sw_version",
