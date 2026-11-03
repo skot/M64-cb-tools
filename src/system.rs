@@ -71,7 +71,10 @@ impl System {
                 continue;
             }
             if let Ok(name) = self.read(&format!("/proc/{pid}/comm"))
-                && matches!(name.as_str(), "btminer" | "btminer_test" | "power-aging")
+                && matches!(
+                    name.as_str(),
+                    "btminer" | "btminer_test" | "power-aging" | "mujina-minerd"
+                )
             {
                 found.push(format!("{name} (PID {pid})"));
             }
@@ -107,7 +110,7 @@ impl System {
         let miners = self.miners()?;
         ensure!(
             miners.is_empty(),
-            "hardware is owned by {}; stop mining through the stock service before testing",
+            "hardware is owned by {}; stop the owning miner through its service before testing",
             miners.join(", ")
         );
         Ok(Session(file))

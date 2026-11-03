@@ -1,3 +1,24 @@
+# M64 validation reports
+
+The latest [maintenance-mode interface retest](RETEST-VALIDATION.md)
+includes physical button presses and visible LEDs, GPIO/PWM transitions,
+all four UARTs at discovery/mining baud, repeated EEPROM reads, driver
+ownership refusals and the current boundaries on independent PSU control.
+**Full independent control of all interfaces remains unverified.**
+
+| Current coverage | Verified | Remaining |
+| --- | --- | --- |
+| Operator controls | Both visible LED colors; physical press/release of both buttons | Exact visible LED polarity; long-press actions deliberately inhibited |
+| GPIO and cooling outputs | Both reset transitions, shared LDO command/readback, each PWM 99→98→99 | Powered reset returns, physical voltages/waveforms, tach reference and coolant flow |
+| Four ASIC UARTs | Open/TX-ioctl acceptance, 375 kbaud/12 Mbaud driver readback, bounded timeout and exact termios restore | Physical TX/RX and powered CRC-valid ASIC replies |
+| PSU, EEPROM and temperatures | Supported stock telemetry; repeated EEPROM reference matches; all eight hwmon/thermal reads | Native I2C/PEC and PSU controls blocked by kernel ownership; no independent PSU enable/protection |
+| Platform ownership | Persistent vendor inhibition; PID 1 watchdog retained; Ethernet transfer; boot/taint/lock guards and Mujina-owner exclusion | USB/FEL and TEE functional calls; watchdog takeover/expiry; Mujina crash shutdown guardian |
+
+For persistent vendor-service inhibition and rollback, see
+[MAINTENANCE-MODE.md](MAINTENANCE-MODE.md). The original controller-only
+bench report is preserved below; its remaining-work list describes that
+earlier session, not the latest assembled-miner status.
+
 # Controller-only bench validation, 2026-11-03
 
 For the subsequent assembled-miner session, see

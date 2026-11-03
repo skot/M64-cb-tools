@@ -44,19 +44,21 @@ impl Drop for Board {
 
 #[test]
 fn active_miner_blocks_mutation_and_native_bus_reads() {
-    let board = Board::new();
-    board.put("/proc/42/comm", b"btminer\n");
-    board.put("/sys/bitmicro/fan/fan0/pwm_duty", b"99\n");
-    let result = board.run(env!("CARGO_BIN_EXE_fan-tool"), &["set-pwm", "0", "10"]);
-    assert!(!result.status.success());
-    assert!(String::from_utf8_lossy(&result.stderr).contains("btminer (PID 42)"));
-    assert_eq!(
-        fs::read(board.0.join("sys/bitmicro/fan/fan0/pwm_duty")).unwrap(),
-        b"99\n"
-    );
-    let result = board.run(env!("CARGO_BIN_EXE_i2c-probe"), &[]);
-    assert!(!result.status.success());
-    assert!(String::from_utf8_lossy(&result.stderr).contains("hardware is owned"));
+    for miner in ["btminer", "btminer_test", "power-aging", "mujina-minerd"] {
+        let board = Board::new();
+        board.put("/proc/42/comm", format!("{miner}\n").as_bytes());
+        board.put("/sys/bitmicro/fan/fan0/pwm_duty", b"99\n");
+        let result = board.run(env!("CARGO_BIN_EXE_fan-tool"), &["set-pwm", "0", "10"]);
+        assert!(!result.status.success());
+        assert!(String::from_utf8_lossy(&result.stderr).contains(&format!("{miner} (PID 42)")));
+        assert_eq!(
+            fs::read(board.0.join("sys/bitmicro/fan/fan0/pwm_duty")).unwrap(),
+            b"99\n"
+        );
+        let result = board.run(env!("CARGO_BIN_EXE_i2c-probe"), &[]);
+        assert!(!result.status.success());
+        assert!(String::from_utf8_lossy(&result.stderr).contains("hardware is owned"));
+    }
 }
 
 #[test]

@@ -28,6 +28,11 @@ For Mujina development, [MAINTENANCE-MODE.md](MAINTENANCE-MODE.md)
 documents the optional persistent helper that stops vendor applications,
 blocks stock restart paths and retains PID 1's hardware watchdog.
 
+The latest [interface retest](RETEST-VALIDATION.md) verifies physical
+button sensing and visible LED control, GPIO/PWM transitions and the
+four UARTs' baud configuration. Full independent PSU control and powered
+ASIC communication remain unverified.
+
 ## Tools
 
 | Binary | Interface coverage |
@@ -141,7 +146,8 @@ before adding optional telemetry probes to a live system.
 ## Exclusive hardware experiments
 
 Direct I2C/UART access and mutations take a shared nonblocking lock and
-refuse to run while `btminer`, `btminer_test` or `power-aging` is running.
+refuse to run while `btminer`, `btminer_test`, `power-aging` or
+`mujina-minerd` is running.
 This serializes these tools; it cannot stop unrelated processes from
 starting afterward or changing hardware. Arrange a controlled bench
 session through the stock service procedures first. Stock supervision

@@ -1,5 +1,9 @@
 # PSU-off maintenance validation, 2026-11-03
 
+For the later pass with vendor applications persistently inhibited,
+including physical buttons/LEDs and two-rate UART transport checks, see
+[RETEST-VALIDATION.md](RETEST-VALIDATION.md).
+
 **Correction after reviewing the next boot:** the EEPROM driver rebind
 caused a vendor-kernel warning, which triggered an automatic supervisor
 reboot and resumed stock mining. The native reads matched, but this was

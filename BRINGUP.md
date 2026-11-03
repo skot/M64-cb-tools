@@ -105,6 +105,10 @@ and divisor 32 with APB2 at 192 MHz. Every saved termios configuration
 was restored afterward. This confirms the programmed discovery rate
 on this kernel/clock setup; it is not a scope measurement of the wire.
 No factor-of-two discovery mapping is needed for the observed setup.
+The later [interface retest](RETEST-VALIDATION.md) also verified the tools'
+own termios2/BOTHER configuration at both 375000 and 12000000 on all four
+UARTs, with matching vendor driver baud/divisor readback and exact
+termios restoration. Physical TX/RX and powered ASIC replies remain open.
 
 The stock shutdown for this check completed at 03:56:58 board-local
 time (UTC+08:00). Output
