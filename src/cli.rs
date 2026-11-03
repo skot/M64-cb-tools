@@ -19,7 +19,9 @@ fn run(name: &'static str) -> Result<()> {
     let args = command(name).get_matches();
     let sys = System {
         root: args.get_one::<PathBuf>("root").unwrap().clone(),
+        expected_boot_id: args.get_one::<String>("expect-boot-id").cloned(),
     };
+    sys.verify_boot()?;
     match name {
         "m64-board-info" => diagnostics::info(&sys),
         "controlboard-misc" => diagnostics::misc(&sys, &args),
@@ -40,7 +42,15 @@ fn command(name: &'static str) -> Command {
         .help("Filesystem root (for offline snapshots and tests)");
     let app = Command::new(name)
         .version(env!("CARGO_PKG_VERSION"))
-        .arg(root);
+        .arg(root)
+        .arg(
+            Arg::new("expect-boot-id")
+                .long("expect-boot-id")
+                .global(true)
+                .help(
+                    "Refuse to continue if the controller rebooted since this boot ID was recorded",
+                ),
+        );
     match name {
         "m64-board-info" => app.about("M64 identity, UART/I2C, GPIO, cooling, Ethernet, USB, TEE and watchdog inventory; no device writes"),
         "i2c-probe" => app.about("Read known M64 targets only; no address sweep, no quick writes, no forced kernel-driver access"),

@@ -16,8 +16,13 @@ driver telemetry, both EEPROMs and stock UART activity while mining
 remained running.
 
 The later [PSU-off maintenance session](MAINTENANCE-VALIDATION.md)
-verified reset/LDO command readback and native EEPROM reads after a
-temporary EEPROM-only driver handoff, then restored all driver bindings.
+verified reset/LDO command readback and matching native EEPROM read
+data. **The EEPROM driver rebind caused a vendor-kernel warning and an
+automatic reboot back into stock mining. Do not repeat that handoff.**
+
+See [BRINGUP.md](BRINGUP.md) for the established stock power path,
+discovery-baud findings, boot guards and remaining requirements for
+independent hashboard energization.
 
 ## Tools
 
@@ -141,6 +146,13 @@ feed watchdogs or persist changes to startup configuration. `keyd` and
 `system-monitor` can still change LEDs; their ownership must be handled
 in the bench procedure. The tools leave GPIO exports and commanded
 levels in place. Fan commands persist until another owner changes them.
+
+Hardware-session commands refuse a nonzero kernel taint state because
+the vendor supervisor may already be preparing an exception reboot.
+Record `/proc/sys/kernel/random/boot_id` before a test sequence and use
+`--expect-boot-id ID` on subsequent commands to reject a different boot.
+Inventory includes the boot ID, uptime and kernel taint value. These
+guards do not replace a power-control guardian or cooling protection.
 
 ```sh
 ./controlboard-misc buttons

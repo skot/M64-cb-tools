@@ -1,5 +1,11 @@
 # PSU-off maintenance validation, 2026-11-03
 
+**Correction after reviewing the next boot:** the EEPROM driver rebind
+caused a vendor-kernel warning, which triggered an automatic supervisor
+reboot and resumed stock mining. The native reads matched, but this was
+not a clean or stable driver handoff. Do not repeat the unbind/rebind
+procedure on this stock kernel.
+
 This session followed the assembled-miner read-only checks. The operator
 requested stopping `btminer` to permit exclusive hardware access.
 
@@ -24,8 +30,9 @@ the intended shutdown state:
   shared switched LDO GPIO263 low.
 - Both cooling PWM channels remained at 99%.
 
-The controller stayed reachable and did not reboot during the checks.
-No power-on command or voltage-setting command was issued.
+The controller stayed reachable through the final 03:40 check, but an
+automatic reboot had already been queued. No power-on command or
+voltage-setting command was issued by the tools.
 
 ## Exclusive-access checks
 
@@ -56,9 +63,33 @@ outputs, including all 128 raw bytes and CRC results, matched the
 kernel-driver reads exactly. Both EEPROM drivers were then rebound;
 the restored kernel paths returned identical content again.
 
-This validates the native I2C EEPROM read path against real hardware,
-without forced I2C access or EEPROM programming. The known board-0 CRC
-mismatch remained unchanged.
+The native read data matched, without forced I2C access or EEPROM
+programming, and the known board-0 CRC mismatch remained unchanged.
+However, rebinding the driver was unsafe on this vendor kernel: its
+extra `/sys/bitmicro/eeprom` registration was not cleaned up normally,
+and the rebind attempted to create an existing node.
+
+## Subsequent automatic reboot
+
+The operator confirmed that they did not reboot or power-cycle the
+controller. Saved logs establish this sequence:
+
+```text
+03:39:39.82 kernel: cannot create duplicate filename '/bitmicro/eeprom/eeprom1'
+03:39:39    Prepare to reboot as exception occurred
+03:41:10    Reboot as exception occurred
+```
+
+The saved `last_exception_sys` snapshot contains the kernel warning and
+stack trace during the rebind shell process. After reboot, the board
+had a new boot ID, `/tmp/was_poweroff` was absent, and stock `btminer`
+was running with PSU output enabled again. This is evidence of a
+controller-requested exception reboot; the earlier PSU transfer-warning
+records do not establish that a PSU watchdog caused this reboot.
+
+This overturns the earlier interpretation of the final-state snapshot
+as a lasting maintenance state. Kernel driver rebinding must not be
+used as a routine workaround for I2C ownership on this stock firmware.
 
 ## Final state and remaining work
 
@@ -79,7 +110,8 @@ PSU driver              attached to pmbus-power
 intentional-off marker  present
 ```
 
-The miner was deliberately left in this stopped, output-off state.
+The snapshot above was accurate when taken, but did not persist through
+the queued reboot. The miner subsequently resumed stock startup.
 Active ASIC UART/register checks need a separately planned powered
 bring-up. Direct sensor I2C and native PSU SMBus/PEC paths remain
 unverified; the tools do not bypass the attached kernel drivers. No

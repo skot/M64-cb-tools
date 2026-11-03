@@ -10,6 +10,9 @@ pub fn info(sys: &System) -> Result<()> {
     println!("Expected profile only; compare it to the identity below before driving hardware.");
     for path in [
         "/proc/sys/kernel/osrelease",
+        "/proc/sys/kernel/random/boot_id",
+        "/proc/sys/kernel/tainted",
+        "/proc/uptime",
         "/proc/device-tree/model",
         "/tmp/platform.ini",
         "/tmp/miner_type",

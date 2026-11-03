@@ -13,6 +13,7 @@ pub const UARTS: [&str; 4] = ["/dev/ttyS1", "/dev/ttyS4", "/dev/ttyS2", "/dev/tt
 
 pub struct System {
     pub root: PathBuf,
+    pub expected_boot_id: Option<String>,
 }
 
 pub struct Session(File);
@@ -79,6 +80,18 @@ impl System {
     }
 
     pub fn session(&self) -> Result<Session> {
+        self.verify_boot()?;
+        let taint_path = "/proc/sys/kernel/tainted";
+        if self.path(taint_path).exists() {
+            let taint: u64 = self
+                .read(taint_path)?
+                .parse()
+                .context("parse kernel taint state")?;
+            ensure!(
+                taint == 0,
+                "kernel taint is {taint}; the vendor supervisor may reboot after an exception. Hardware commands are disabled; inspect the exception and reboot state first"
+            );
+        }
         let file = OpenOptions::new()
             .create(true)
             .truncate(false)
@@ -98,6 +111,17 @@ impl System {
             miners.join(", ")
         );
         Ok(Session(file))
+    }
+
+    pub fn verify_boot(&self) -> Result<()> {
+        if let Some(expected) = &self.expected_boot_id {
+            let actual = self.read("/proc/sys/kernel/random/boot_id")?;
+            ensure!(
+                &actual == expected,
+                "controller boot ID changed: expected {expected}, found {actual}; refusing to continue the previous hardware session"
+            );
+        }
+        Ok(())
     }
 
     pub fn gpio_read(&self, gpio: u32) -> Result<String> {

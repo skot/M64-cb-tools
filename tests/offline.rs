@@ -199,3 +199,41 @@ fn powered_psu_status_reads_indexed_telemetry_without_mutating_setpoints() {
         b"2255"
     );
 }
+
+#[test]
+fn kernel_exception_blocks_hardware_commands_but_allows_observation() {
+    let board = Board::new();
+    board.put("/proc/sys/kernel/tainted", b"512\n");
+    board.put("/sys/bitmicro/fan/fan0/pwm_duty", b"99\n");
+    let result = board.run(env!("CARGO_BIN_EXE_fan-tool"), &["set-pwm", "0", "99"]);
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("kernel taint is 512"));
+    assert_eq!(
+        fs::read(board.0.join("sys/bitmicro/fan/fan0/pwm_duty")).unwrap(),
+        b"99\n"
+    );
+    let result = board.run(env!("CARGO_BIN_EXE_fan-tool"), &["status"]);
+    assert!(result.status.success());
+}
+
+#[test]
+fn unexpected_reboot_blocks_hardware_session() {
+    let board = Board::new();
+    board.put("/proc/sys/kernel/random/boot_id", b"new-boot\n");
+    board.put("/sys/bitmicro/fan/fan0/pwm_duty", b"99\n");
+    let result = board.run(
+        env!("CARGO_BIN_EXE_fan-tool"),
+        &["--expect-boot-id", "old-boot", "set-pwm", "0", "99"],
+    );
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("boot ID changed"));
+    assert_eq!(
+        fs::read(board.0.join("sys/bitmicro/fan/fan0/pwm_duty")).unwrap(),
+        b"99\n"
+    );
+    let result = board.run(
+        env!("CARGO_BIN_EXE_controlboard-misc"),
+        &["--expect-boot-id", "new-boot", "status"],
+    );
+    assert!(result.status.success());
+}

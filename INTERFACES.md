@@ -16,7 +16,7 @@ Exclusive PSU-off checks are in
 | Reset | GPIO201/202, active low, physical boards 0/1 | PSU-off assert/release command readback verified | Powered return propagation and electrical timing |
 | Reset return | GPIO193/194 | Read exported raw level | GPIO194 not directly captured in reference notes |
 | Shared switched LDO | GPIO263, active high | PSU-off on/off command readback verified with both resets asserted | Physical voltage/settling measurement |
-| Hashboard EEPROM | I2C10, `0x50`/`0x51`, BL24C02 | Kernel and native reads matched exactly after EEPROM-only driver handoff; bindings restored | No programming tested; board-0 CRC mismatch unchanged |
+| Hashboard EEPROM | I2C10, `0x50`/`0x51`, BL24C02 | Kernel/native read data matched; board-0 CRC mismatch unchanged | Vendor driver rebind caused a warning and automatic reboot; use kernel EEPROM paths |
 | Hashboard temperature | I2C10, `0x48`/`0x49`, LM75 class | Hwmon reads matched stock paired-slot temperatures | Native reads and calibration comparison |
 | Environment sensor | I2C4, `0x4f`, LM75 class | Hwmon read works with PSU and hashboards absent | Exact physical sensor location/medium |
 | P738B PSU | I2C4, `0x58` | Live stock-driver telemetry including indexed fan and temperatures | Native SMBus/PEC and controls; unsupported generic nodes can affect error reporting |
