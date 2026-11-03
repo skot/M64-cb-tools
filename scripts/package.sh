@@ -20,13 +20,16 @@ cp "$TOOLS_DIR/VALIDATION.md" "$BUNDLE/VALIDATION.md"
 cp "$TOOLS_DIR/POWERED-VALIDATION.md" "$BUNDLE/POWERED-VALIDATION.md"
 cp "$TOOLS_DIR/MAINTENANCE-VALIDATION.md" "$BUNDLE/MAINTENANCE-VALIDATION.md"
 cp "$TOOLS_DIR/BRINGUP.md" "$BUNDLE/BRINGUP.md"
+cp "$TOOLS_DIR/MAINTENANCE-MODE.md" "$BUNDLE/MAINTENANCE-MODE.md"
+mkdir -p "$BUNDLE/maintenance"
+cp "$TOOLS_DIR"/scripts/maintenance/*.sh "$TOOLS_DIR/scripts/maintenance/m64-maintenance.init" "$BUNDLE/maintenance/"
 cp "$REPO_DIR/LICENSE" "$BUNDLE/LICENSE"
 (
     cd "$BUNDLE"
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum m64-board-info controlboard-misc fan-tool p738b-psu-tool hashboard-m64 i2c-probe capture-status.sh > SHA256SUMS
+        sha256sum m64-board-info controlboard-misc fan-tool p738b-psu-tool hashboard-m64 i2c-probe capture-status.sh maintenance/* > SHA256SUMS
     else
-        shasum -a 256 m64-board-info controlboard-misc fan-tool p738b-psu-tool hashboard-m64 i2c-probe capture-status.sh > SHA256SUMS
+        shasum -a 256 m64-board-info controlboard-misc fan-tool p738b-psu-tool hashboard-m64 i2c-probe capture-status.sh maintenance/* > SHA256SUMS
     fi
 )
 tar -czf "$OUT/m64-cb-tools-$TARGET.tar.gz" -C "$OUT" "m64-cb-tools-$TARGET"

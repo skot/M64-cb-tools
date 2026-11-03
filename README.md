@@ -24,6 +24,10 @@ See [BRINGUP.md](BRINGUP.md) for the established stock power path,
 discovery-baud findings, boot guards and remaining requirements for
 independent hashboard energization.
 
+For Mujina development, [MAINTENANCE-MODE.md](MAINTENANCE-MODE.md)
+documents the optional persistent helper that stops vendor applications,
+blocks stock restart paths and retains PID 1's hardware watchdog.
+
 ## Tools
 
 | Binary | Interface coverage |
@@ -59,13 +63,15 @@ target/m64-cb-tools/m64-cb-tools-aarch64-unknown-linux-musl.tar.gz
 
 The packaging script selects `rust-lld`. No cross C compiler or board
 libraries are needed. It includes all six static binaries, the status
-capture script, documentation, license and a SHA-256 manifest.
+capture script, optional maintenance helper, documentation, license and a
+SHA-256 manifest.
 
 ## RAM-only deployment
 
 The documented working SSH account is `micro` with UID 0. Substitute the
 board's current address. Use an already configured SSH key; these tools
-do not change SSH access, boot hooks or startup services.
+do not change SSH access. Extracting this bundle does not install the
+optional persistent maintenance helper or change startup services.
 
 ```sh
 scp -O target/m64-cb-tools/m64-cb-tools-aarch64-unknown-linux-musl.tar.gz \
@@ -141,11 +147,13 @@ starting afterward or changing hardware. Arrange a controlled bench
 session through the stock service procedures first. Stock supervision
 and watchdog behavior must be understood before stopping mining.
 
-These tools never stop daemons, unbind kernel drivers, disable watchdogs,
-feed watchdogs or persist changes to startup configuration. `keyd` and
-`system-monitor` can still change LEDs; their ownership must be handled
-in the bench procedure. The tools leave GPIO exports and commanded
-levels in place. Fan commands persist until another owner changes them.
+The diagnostic binaries never stop daemons, unbind kernel drivers,
+disable watchdogs, feed watchdogs or persist startup changes. The optional
+[maintenance helper](MAINTENANCE-MODE.md) separately handles vendor
+service ownership and startup inhibition. Outside that mode, `keyd` and
+`system-monitor` can still change LEDs. The tools leave GPIO exports and
+commanded levels in place. Fan commands persist until another owner
+changes them.
 
 Hardware-session commands refuse a nonzero kernel taint state because
 the vendor supervisor may already be preparing an exception reboot.

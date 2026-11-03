@@ -154,8 +154,9 @@ enable sequence should be replayed merely to obtain an ID response.
 8. Treat any changed boot ID or kernel exception as a new session. The
    vendor supervisor can reboot after a warning, and ordinary stock
    boot can resume mining. Boot-ID checks alone do not prevent that
-   automatic startup; a persistent, tested startup-inhibit policy is
-   still required before unattended independent power experiments.
+   automatic startup. The optional [maintenance policy](MAINTENANCE-MODE.md)
+   now provides reboot-tested inhibition of the selected stock startup
+   and respawn paths. It does not provide the independent power guardian.
 
 The tools now expose boot ID, uptime and kernel taint in inventory.
 Hardware-session commands reject a nonzero taint value, and the global
@@ -164,10 +165,12 @@ guards are implemented and tested; they do not constitute the power-up
 guardian or an output-enable command. Fifteen offline tests pass, and
 the deployed boot-ID guard rejected an intentionally mismatched ID.
 
-The miner was left stopped after the output-off baud check: both resets
+The miner was initially left stopped after the output-off baud check: both resets
 asserted, switched LDO off, cooling still at 99%, supervisor running and
 PSU hashboard output at 0 V / 0 A. As the earlier reboot demonstrated,
 that is a point-in-time state, not a persistent startup inhibition.
+The later maintenance-mode session installed and reboot-tested the
+persistent inhibition described in [MAINTENANCE-MODE.md](MAINTENANCE-MODE.md).
 
 ## Evidence and limitations
 

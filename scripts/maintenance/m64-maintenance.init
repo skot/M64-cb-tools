@@ -1,0 +1,10 @@
+#!/bin/sh /etc/rc.common
+START=01
+
+start() {
+    /data/m64-cb-tools/maintenance/maintenance-mode.sh boot
+}
+
+stop() {
+    : # Retain the inhibit policy through shutdown.
+}
